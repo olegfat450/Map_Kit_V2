@@ -4,54 +4,119 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Point
-import android.location.Location
+import android.graphics.Color
 import android.location.LocationManager
 import android.os.Bundle
-import android.view.View
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.example.map_kit.databinding.ActivityMapBinding
 import com.yandex.mapkit.Animation
+import com.yandex.mapkit.MapKit
 import com.yandex.mapkit.MapKitFactory
+import com.yandex.mapkit.RequestPoint
+import com.yandex.mapkit.RequestPointType
+import com.yandex.mapkit.directions.DirectionsFactory
+import com.yandex.mapkit.directions.driving.DrivingOptions
+import com.yandex.mapkit.directions.driving.DrivingRoute
+import com.yandex.mapkit.directions.driving.DrivingRouter
+import com.yandex.mapkit.directions.driving.DrivingSection
+import com.yandex.mapkit.directions.driving.DrivingSession
+import com.yandex.mapkit.directions.driving.VehicleOptions
+import com.yandex.mapkit.geometry.Point
+import com.yandex.mapkit.layers.GeoObjectTapListener
 import com.yandex.mapkit.map.CameraPosition
+import com.yandex.mapkit.map.InputListener
+import com.yandex.mapkit.map.Map
 import com.yandex.mapkit.map.MapObjectCollection
+import com.yandex.mapkit.map.MapObjectTapListener
 import com.yandex.mapkit.map.PlacemarkMapObject
+import com.yandex.runtime.Error
 import com.yandex.runtime.image.ImageProvider
 
-class MapActivity : AppCompatActivity() {
+class MapActivity : AppCompatActivity(),DrivingSession.DrivingRouteListener {
 
     private lateinit var binding: ActivityMapBinding
 
-    var location = com.yandex.mapkit.geometry.Point(0.0, 0.0)
+    var location = com.yandex.mapkit.geometry.Point(56.0184, 92.8672)
     private val zoomValue = 16.5f
-          private var lat = 0.0;private var lon = 0.0
-       // var  location: Location = (0.0,0.0)
-       //  private lateinit var location: Location
 
+          private var lat = 56.0184; private var lon = 92.8672
+          private var latx = 0.0; private var lony = 0.0
+
+                 var probki = true
        private lateinit var locationManager: LocationManager
 
-    @SuppressLint("MissingPermission")
+   private  var  placemarkMapObject: PlacemarkMapObject? = null
+
+     private var mapObject: MapObjectCollection? = null
+     private var drivingRouter: DrivingRouter? = null
+     private var drivingSession: DrivingSession? = null
+
+    val onMapTap = object: InputListener {
+        override fun onMapTap(p0: Map, p1: Point) {
+            Toast.makeText(applicationContext,"${p1.latitude}  --  ${p1.longitude}",Toast.LENGTH_LONG).show()
+
+        }
+
+        override fun onMapLongTap(p0: Map, p1: Point) {
+            latx = p1.latitude; lony = p1.longitude
+            createRoad() } }
+
+    @SuppressLint("MissingPermission", "UseCompatLoadingForDrawables")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMapBinding.inflate(layoutInflater)
         setContentView(binding.root)
-         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+          locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+
+             drivingRouter = DirectionsFactory.getInstance().createDrivingRouter()
+
+
+
+
+
 
                  getlocation(10f)
 
+               val mapKit: MapKit = MapKitFactory.getInstance()
+                  val probki_layer = mapKit.createTrafficLayer(binding.mapTv.mapWindow)
+
+                       probki_layer.isTrafficVisible = true
+
+                          binding.buttonprobki.background = getDrawable(R.drawable.circle)
+
+
+
+
+                    binding.mapTv.map.addInputListener(onMapTap)
 
 
 
 
 
-        binding.button.setOnClickListener { binding.mapTv.map.mapObjects.addEmptyPlacemark(location); getlocation(2f) } }
+
+
+        binding.buttonprobki.setOnClickListener {
+
+            when ( probki) {
+
+                true -> { probki_layer.isTrafficVisible = false; binding.buttonprobki.background = getDrawable(R.drawable.circle_2); probki = false }
+                false -> { probki_layer.isTrafficVisible = true; binding.buttonprobki.background = getDrawable(R.drawable.circle); probki = true }
+            }
+
+        }
+
+        binding.button.setOnClickListener {
+
+          if (placemarkMapObject != null) { binding.mapTv.map.mapObjects.remove(placemarkMapObject!!); placemarkMapObject = null}
+                                             getlocation(2f) } }
+
+
+
 
     @SuppressLint("MissingPermission")
     private fun getlocation(duration: Float) {
@@ -74,10 +139,13 @@ class MapActivity : AppCompatActivity() {
 
         val mapObjectCollection: MapObjectCollection = binding.mapTv.map.mapObjects
 
+        placemarkMapObject = mapObjectCollection.addPlacemark(location,ImageProvider.fromBitmap(marker))
 
-        val placemarkMapObject: PlacemarkMapObject = mapObjectCollection.addPlacemark(location,ImageProvider.fromBitmap(marker))
+                                    mapObjectCollection.addEmptyPlacemark(location)
 
-            placemarkMapObject.opacity = 0.5f
+
+
+            placemarkMapObject!!.opacity = 1f
 
     }
 
@@ -105,7 +173,36 @@ class MapActivity : AppCompatActivity() {
         MapKitFactory.getInstance().onStop()
         super.onStop() }
 
+    override fun onDrivingRoutes(p0: MutableList<DrivingRoute>) {
+             for ( i in p0 ) { mapObject!!.addPolyline(i.geometry) }
+
+    }
+
+    override fun onDrivingRoutesError(p0: Error) {
+
+        Toast.makeText(applicationContext,"Проезд не найден",Toast.LENGTH_LONG).show()
+    }
+    private fun createRoad() {
+
+           if (drivingSession != null) { binding.mapTv.map.mapObjects.remove(mapObject!!) }
 
 
+        mapObject = binding.mapTv.map.mapObjects.addCollection()
+         val reqestPoint: ArrayList<RequestPoint> = ArrayList()
+               reqestPoint.add(RequestPoint(Point(lat,lon),RequestPointType.WAYPOINT,null))
+               reqestPoint.add(RequestPoint(Point(latx,lony),RequestPointType.WAYPOINT,null))
+
+            drivingSession = drivingRouter!!.requestRoutes(reqestPoint, DrivingOptions(), VehicleOptions(),this)
+    }
 
 }
+
+
+
+
+
+
+
+
+
+

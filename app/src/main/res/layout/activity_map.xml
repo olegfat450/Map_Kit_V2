@@ -28,9 +28,23 @@
         android:layout_marginBottom="100dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:src="@drawable/add"
+        android:src="@drawable/lication"
+
         />
 
+    <androidx.appcompat.widget.AppCompatImageButton
 
+        android:id="@+id/buttonprobki"
+        android:src="@drawable/avto"
+        android:background="@drawable/circle"
+        app:srcCompat="@drawable/circle"
+        android:scaleType="center"
+        android:clipToOutline="false"
+        android:layout_width="40sp"
+        android:layout_height="40sp"
+        android:layout_marginTop="32dp"
+        android:layout_marginEnd="32dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

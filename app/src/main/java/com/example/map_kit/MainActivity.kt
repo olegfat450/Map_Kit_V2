@@ -95,7 +95,12 @@ class MainActivity : AppCompatActivity(){
 
     }
 
+    override fun onDestroy() {
+        finishAffinity()
 
+        super.onDestroy()
+
+    }
 }
 
 
